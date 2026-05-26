@@ -1,0 +1,282 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Animation improvements for better UX */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Enhanced modal animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-bottom {
+  from { 
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes zoom-in {
+  from { 
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in-0 {
+  animation: fade-in 0.2s ease-out;
+}
+
+.zoom-in-95 {
+  animation: zoom-in 0.2s ease-out;
+}
+
+.slide-in-from-bottom-2 {
+  animation: slide-in-from-bottom 0.3s ease-out;
+}
+
+/* Mobile-first responsive design improvements for Sprint 3 */
+@layer components {
+  /* Enhanced mobile tabs styling */
+  .mobile-tabs {
+    @apply flex flex-col sm:flex-row;
+  }
+  
+  .mobile-tabs .tabs-list {
+    @apply w-full grid-cols-2 h-auto min-h-[48px];
+  }
+  
+  .mobile-tabs .tabs-trigger {
+    @apply flex-1 min-h-[48px] px-3 py-2 text-sm;
+  }
+  
+  /* Profile banner mobile responsive */
+  .profile-banner {
+    @apply flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0;
+  }
+  
+  .profile-banner-content {
+    @apply flex-1 text-sm sm:text-base;
+  }
+  
+  .profile-banner-dismiss {
+    @apply self-end sm:self-center ml-0 sm:ml-4;
+  }
+  
+  /* Accordion mobile improvements */
+  .accordion-mobile {
+    @apply space-y-4;
+  }
+  
+  .accordion-item-mobile {
+    @apply border border-gray-200 rounded-lg bg-white shadow-sm;
+  }
+  
+  .accordion-trigger-mobile {
+    @apply p-4 sm:p-6 hover:bg-gray-50 transition-colors;
+  }
+  
+  .accordion-content-mobile {
+    @apply p-4 sm:p-6 pt-0;
+  }
+  
+  /* Upload section mobile */
+  .upload-section-mobile {
+    @apply space-y-4;
+  }
+  
+  .document-grid-mobile {
+    @apply grid grid-cols-1 gap-3;
+  }
+}
+
+/* Touch target improvements for mobile */
+@media (max-width: 375px) {
+  .mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Ensure buttons are touch-friendly */
+  button {
+    min-height: 44px;
+  }
+  
+  /* Improve form field touch targets */
+  input, textarea, select {
+    min-height: 44px;
+    padding: 12px;
+  }
+  
+  /* Stack accordion sections vertically on very small screens */
+  .accordion-content-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
+:root {
+  --background: 30 6% 98%; /* #FAFAF9 - warm white */
+  --foreground: 0 0% 9%; /* #171717 */
+  --card: 30 6% 99%; /* #FCFCFB - warm card background */
+  --card-foreground: 0 0% 9%;
+  --popover: 30 6% 99%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 0 0% 9%; /* #171717 - charcoal black */
+  --primary-foreground: 0 0% 100%;
+  --primary-50: 30 10% 99%; /* #FCFCFC - almost white with warmth */
+  --primary-100: 30 6% 97%; /* #F8F7F5 - warm off-white */
+  --primary-200: 30 6% 92%; /* #EBEAE6 - warm light gray */
+  --primary-300: 30 5% 85%; /* #D9D7D2 - soft warm gray */
+  --primary-500: 0 0% 15%; /* #27272A - medium dark */
+  --primary-700: 0 0% 9%; /* #171717 - primary dark */
+  --primary-900: 0 0% 4%; /* #09090B - deepest black */
+  --secondary: 30 6% 96%; /* #F6F5F3 - warm secondary */
+  --secondary-foreground: 0 0% 15%;
+  --muted: 30 6% 96%; /* #F6F5F3 - warm muted */
+  --muted-foreground: 0 0% 45%;
+  --accent: 30 6% 96%; /* #F6F5F3 - warm accent */
+  --accent-foreground: 0 0% 15%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 30 6% 92%; /* #EBEAE6 - warm border */
+  --input: 30 6% 92%; /* #EBEAE6 - warm input */
+  --ring: 0 0% 9%;
+  --radius: 0.5rem;
+  
+  /* Semantic Status Colors */
+  --success: 142 76% 36%;
+  --success-foreground: 0 0% 98%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 9%;
+  --info: 217 91% 60%;
+  --info-foreground: 0 0% 98%;
+  
+  /* Auto-fetch indicator */
+  --auto-fetch: 142 76% 36%;
+  --manual-fetch: 217 91% 60%;
+  --user-added: 240 4.8% 45.9%;
+}
+
+.dark {
+  --background: 20 14.3% 4.1%;
+  --foreground: 0 0% 95%;
+  --card: 24 9.8% 10%;
+  --card-foreground: 0 0% 95%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 0 0% 9%; /* #171717 - charcoal black */
+  --primary-foreground: 0 0% 100%;
+  --primary-50: 0 0% 98%; /* #FAFAFA - very light gray */
+  --primary-100: 0 0% 96%; /* #F4F4F5 - light gray */
+  --primary-300: 0 0% 83%; /* #D4D4D8 - muted text */
+  --primary-500: 0 0% 15%; /* #27272A - medium dark */
+  --primary-700: 0 0% 9%; /* #171717 - primary dark */
+  --primary-900: 0 0% 4%; /* #09090B - deepest black */
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 12 6.5% 15.1%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 85.7% 97.3%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 0 0% 9%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer components {
+  /* Card improvements */
+  .card-enhanced {
+    @apply rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+  
+  /* Button hierarchy */
+  .btn-primary-enhanced {
+    @apply bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition-all duration-200;
+  }
+  
+  /* Status indicators */
+  .status-success {
+    @apply bg-green-100 text-green-800 border-green-200;
+  }
+  
+  .status-warning {
+    @apply bg-amber-100 text-amber-800 border-amber-200;
+  }
+  
+  .status-info {
+    @apply bg-blue-100 text-blue-800 border-blue-200;
+  }
+  
+  /* Article type indicators */
+  .indicator-auto {
+    @apply w-2 h-2 rounded-full bg-green-500;
+  }
+  
+  .indicator-manual {
+    @apply w-2 h-2 rounded-full bg-blue-500;
+  }
+  
+  .indicator-user {
+    @apply w-2 h-2 rounded-full bg-gray-500;
+  }
+}
+
+.auth-container {
+  background-image: linear-gradient(to right, rgba(79, 57, 246, 0.05), rgba(79, 57, 246, 0.02));
+}
+
+.onboarding-progress-bar {
+  height: 4px;
+  transition: width 0.3s ease-in-out;
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
