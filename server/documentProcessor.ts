@@ -1,7 +1,10 @@
 import { CompanyDocument } from "@shared/schema";
 import * as mammoth from "mammoth";
 import * as XLSX from "xlsx";
-import pdfParse from "pdf-parse";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
 export interface ProcessedDocument {
   extractedContent: string;
