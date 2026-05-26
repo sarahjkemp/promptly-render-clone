@@ -1,6 +1,7 @@
 import { CompanyDocument } from "@shared/schema";
 import * as mammoth from "mammoth";
 import * as XLSX from "xlsx";
+import pdfParse from "pdf-parse";
 
 export interface ProcessedDocument {
   extractedContent: string;
@@ -8,9 +9,6 @@ export interface ProcessedDocument {
   keywords: string[];
   processedAt: Date;
 }
-
-// Module cache for dynamic imports
-const moduleCache = new Map<string, any>();
 
 export class DocumentProcessor {
   /**
@@ -56,25 +54,11 @@ export class DocumentProcessor {
   }
 
   /**
-   * Extract text from PDF files using dynamic import
+   * Extract text from PDF files
    */
   private async extractFromPDF(file: Buffer): Promise<string> {
     try {
-      // Use cached module or dynamically import pdf-parse
-      let pdfParseModule = moduleCache.get('pdf-parse');
-      
-      if (!pdfParseModule) {
-        console.log('Loading pdf-parse module...');
-        
-        // Dynamic import for ES modules - handle both default and named exports
-        const importedModule = await import('pdf-parse');
-        pdfParseModule = importedModule.default || importedModule;
-        
-        moduleCache.set('pdf-parse', pdfParseModule);
-        console.log('pdf-parse module loaded and cached');
-      }
-      
-      const data = await pdfParseModule(file);
+      const data = await pdfParse(file);
       return data.text || '';
     } catch (error: any) {
       console.error('PDF processing error:', error);
