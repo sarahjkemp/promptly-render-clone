@@ -42,6 +42,10 @@ export interface FounderProfile {
   approvedPhrases: string[];
   targetPeople: string[];
   contentGoals: string[];
+  generationDirectives: string;
+  anglePriorityRules: string[];
+  bannedOpenings: string[];
+  hardRequirements: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -98,6 +102,10 @@ export interface InsertFounderProfile {
   approvedPhrases?: string[];
   targetPeople?: string[];
   contentGoals?: string[];
+  generationDirectives?: string;
+  anglePriorityRules?: string[];
+  bannedOpenings?: string[];
+  hardRequirements?: string[];
 }
 
 export interface InsertFounderSource {
@@ -217,6 +225,10 @@ class FounderStorage {
       approvedPhrases: data.approvedPhrases ?? [],
       targetPeople: data.targetPeople ?? [],
       contentGoals: data.contentGoals ?? [],
+      generationDirectives: data.generationDirectives ?? "",
+      anglePriorityRules: data.anglePriorityRules ?? [],
+      bannedOpenings: data.bannedOpenings ?? [],
+      hardRequirements: data.hardRequirements ?? [],
       createdAt: now(),
       updatedAt: now(),
     };

@@ -295,6 +295,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     approvedPhrases: z.array(z.string()).optional().default([]),
     targetPeople: z.array(z.string()).optional().default([]),
     contentGoals: z.array(z.string()).optional().default([]),
+    generationDirectives: z.string().optional().default(""),
+    anglePriorityRules: z.array(z.string()).optional().default([]),
+    bannedOpenings: z.array(z.string()).optional().default([]),
+    hardRequirements: z.array(z.string()).optional().default([]),
   });
 
   const founderSourceSchema = z.object({

@@ -29,6 +29,10 @@ interface FounderProfile {
   approvedPhrases: string[];
   targetPeople: string[];
   contentGoals: string[];
+  generationDirectives: string;
+  anglePriorityRules: string[];
+  bannedOpenings: string[];
+  hardRequirements: string[];
 }
 
 interface FounderSource {
@@ -78,6 +82,10 @@ const emptyFounderForm = {
   approvedPhrases: "",
   targetPeople: "",
   contentGoals: "",
+  generationDirectives: "",
+  anglePriorityRules: "",
+  bannedOpenings: "",
+  hardRequirements: "",
 };
 
 const emptySourceForm = {
@@ -126,6 +134,10 @@ function founderToForm(founder: FounderProfile) {
     approvedPhrases: listToTextarea(founder.approvedPhrases || []),
     targetPeople: listToTextarea(founder.targetPeople || []),
     contentGoals: listToTextarea(founder.contentGoals || []),
+    generationDirectives: founder.generationDirectives || "",
+    anglePriorityRules: listToTextarea(founder.anglePriorityRules || []),
+    bannedOpenings: listToTextarea(founder.bannedOpenings || []),
+    hardRequirements: listToTextarea(founder.hardRequirements || []),
   };
 }
 
@@ -199,6 +211,10 @@ export default function FounderPostsPage() {
         approvedPhrases: textareaToList(founderForm.approvedPhrases),
         targetPeople: textareaToList(founderForm.targetPeople),
         contentGoals: textareaToList(founderForm.contentGoals),
+        generationDirectives: founderForm.generationDirectives,
+        anglePriorityRules: textareaToList(founderForm.anglePriorityRules),
+        bannedOpenings: textareaToList(founderForm.bannedOpenings),
+        hardRequirements: textareaToList(founderForm.hardRequirements),
       };
       const response = await fetch("/api/founders", {
         method: "POST",
@@ -232,6 +248,10 @@ export default function FounderPostsPage() {
         approvedPhrases: textareaToList(founderForm.approvedPhrases),
         targetPeople: textareaToList(founderForm.targetPeople),
         contentGoals: textareaToList(founderForm.contentGoals),
+        generationDirectives: founderForm.generationDirectives,
+        anglePriorityRules: textareaToList(founderForm.anglePriorityRules),
+        bannedOpenings: textareaToList(founderForm.bannedOpenings),
+        hardRequirements: textareaToList(founderForm.hardRequirements),
       };
       const response = await fetch(`/api/founders/${selectedFounderId}`, {
         method: "PATCH",
@@ -401,6 +421,10 @@ export default function FounderPostsPage() {
           approvedPhrases: backupFounder.approvedPhrases,
           targetPeople: backupFounder.targetPeople,
           contentGoals: backupFounder.contentGoals,
+          generationDirectives: backupFounder.generationDirectives || "",
+          anglePriorityRules: backupFounder.anglePriorityRules || [],
+          bannedOpenings: backupFounder.bannedOpenings || [],
+          hardRequirements: backupFounder.hardRequirements || [],
         };
 
         await fetch("/api/founders", {
@@ -572,6 +596,35 @@ export default function FounderPostsPage() {
                   value={founderForm.contentGoals}
                   onChange={(event) => setFounderForm((prev) => ({ ...prev, contentGoals: event.target.value }))}
                 />
+              </div>
+
+              <div className="rounded-lg border border-gray-200 p-4">
+                <h3 className="mb-3 font-medium text-gray-900">Advanced generation controls</h3>
+                <p className="mb-4 text-sm text-gray-600">
+                  Use this section to steer the generator without another deploy. These instructions are applied directly to this founder's drafts.
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Textarea
+                    placeholder="Angle priority rules (one per line)"
+                    value={founderForm.anglePriorityRules}
+                    onChange={(event) => setFounderForm((prev) => ({ ...prev, anglePriorityRules: event.target.value }))}
+                  />
+                  <Textarea
+                    placeholder="Banned openings / framings (one per line)"
+                    value={founderForm.bannedOpenings}
+                    onChange={(event) => setFounderForm((prev) => ({ ...prev, bannedOpenings: event.target.value }))}
+                  />
+                  <Textarea
+                    placeholder="Hard requirements for every draft (one per line)"
+                    value={founderForm.hardRequirements}
+                    onChange={(event) => setFounderForm((prev) => ({ ...prev, hardRequirements: event.target.value }))}
+                  />
+                  <Textarea
+                    placeholder="Additional generation directives"
+                    value={founderForm.generationDirectives}
+                    onChange={(event) => setFounderForm((prev) => ({ ...prev, generationDirectives: event.target.value }))}
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3">

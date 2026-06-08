@@ -87,6 +87,10 @@ function buildFounderContext(founder: FounderProfile) {
     founder.approvedPhrases.length ? `Approved phrases: ${founder.approvedPhrases.join(" | ")}` : "",
     founder.targetPeople.length ? `Target people / communities: ${founder.targetPeople.join(" | ")}` : "",
     founder.contentGoals.length ? `Content goals: ${founder.contentGoals.join(" | ")}` : "",
+    founder.anglePriorityRules.length ? `Angle priority rules: ${founder.anglePriorityRules.join(" | ")}` : "",
+    founder.bannedOpenings.length ? `Banned openings / framings: ${founder.bannedOpenings.join(" | ")}` : "",
+    founder.hardRequirements.length ? `Hard requirements: ${founder.hardRequirements.join(" | ")}` : "",
+    founder.generationDirectives ? `Additional generation directives: ${founder.generationDirectives}` : "",
   ].filter(Boolean).join("\n");
 }
 
@@ -220,6 +224,7 @@ Rules:
 - do not default to reverent framing about smart people, hidden contributors, or invisible labour unless that is the explicit core point of the source
 - if the source contains a harder claim about workflow failure, incentives, quality, efficiency, or benchmarks, that claim should lead
 - avoid sentimental or prestige-led framing when a more commercially or technically meaningful point is available
+- founder-specific angle priority rules, banned openings, hard requirements, and additional directives are mandatory and override your generic habits
 
 Preferred post shape:
 1. Open with a concrete fact, quote, or observed problem
