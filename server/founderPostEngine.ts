@@ -23,6 +23,14 @@ const SUMMARY_ENDING_PATTERNS = [
   /the system, not the/i,
 ];
 
+const SOFT_FRAMING_PATTERNS = [
+  /human infrastructure is invisible/i,
+  /people underneath the model/i,
+  /never ask who made it possible/i,
+  /no public credit/i,
+  /if you care about frontier ai progress/i,
+];
+
 export interface FounderPostRequest {
   founder: FounderProfile;
   sources: FounderSource[];
@@ -139,6 +147,10 @@ function findSlopIssues(text: string) {
     issues.push("The ending reads like a generic summary line instead of a specific founder conclusion.");
   }
 
+  if (SOFT_FRAMING_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    issues.push("The draft drifts into soft uplift or invisible-labour framing instead of a harder operational point.");
+  }
+
   return issues;
 }
 
@@ -180,6 +192,7 @@ The bar:
 - it should read like a real founder with firsthand knowledge, not a polished observer
 - it must contain a hard proof anchor: a number, a quote, a concrete operational detail, or a specific observed mechanism
 - it should make one sharp point, not attempt a complete essay
+- when the source contains an operational or structural claim, prefer that over prestige, inspiration, gratitude, or invisible-human-labour framing
 
 Rules:
 - write for LinkedIn, with strong scannability
@@ -204,6 +217,9 @@ Rules:
 - do not end with a generic moral or high-level summary sentence
 - when possible, start from a fact, quote, anecdote, or concrete observation rather than an abstract thesis
 - use the strongest source detail early
+- do not default to reverent framing about smart people, hidden contributors, or invisible labour unless that is the explicit core point of the source
+- if the source contains a harder claim about workflow failure, incentives, quality, efficiency, or benchmarks, that claim should lead
+- avoid sentimental or prestige-led framing when a more commercially or technically meaningful point is available
 
 Preferred post shape:
 1. Open with a concrete fact, quote, or observed problem
@@ -216,6 +232,12 @@ Bad opening example:
 
 Better opening example:
 - "I've been on projects where most of the created work got discarded before it ever became usable."
+
+Bad framing example:
+- "There are Olympiad medalists and PhDs in our annotation queues, fixing broken AI training data with no public credit."
+
+Better framing example:
+- "I've been on projects where most of the created work was discarded because the workflow made it easier to reject tasks than improve them."
 
 Return strict JSON only with this shape:
 {
@@ -262,6 +284,7 @@ Keep the underlying idea, but remove the cliché framing and over-balanced sente
 Make sure the revised version contains at least one credible proof point, data point, direct quote, operational detail, or other clear evidence signal.
 Move the strongest source detail earlier.
 If the ending sounds like a generic summary, replace it with something more specific and more founder-like.
+If the draft leans soft, sentimental, or prestige-led, replace that framing with the harder operational claim in the source.
 Return the same strict JSON shape.`;
 
     parsed = await requestFounderDraft(systemPrompt, repairPrompt);
