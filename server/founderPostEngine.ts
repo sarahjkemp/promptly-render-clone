@@ -16,6 +16,13 @@ const SLOP_PATTERNS = [
   /most people talk about/i,
 ];
 
+const SUMMARY_ENDING_PATTERNS = [
+  /quality starts/i,
+  /the real bottleneck/i,
+  /the future of ai/i,
+  /the system, not the/i,
+];
+
 export interface FounderPostRequest {
   founder: FounderProfile;
   sources: FounderSource[];
@@ -99,6 +106,8 @@ function findSlopIssues(text: string) {
   const issues: string[] = [];
   const trimmed = text.trim();
   const firstParagraph = trimmed.split(/\n\s*\n/)[0] || trimmed;
+  const paragraphs = trimmed.split(/\n\s*\n/).filter(Boolean);
+  const lastParagraph = paragraphs[paragraphs.length - 1] || trimmed;
 
   if (SLOP_PATTERNS.some((pattern) => pattern.test(firstParagraph))) {
     issues.push("The opening uses a generic AI-thinkpiece pattern or cliché contrarian setup.");
@@ -120,6 +129,14 @@ function findSlopIssues(text: string) {
   const hasEvidenceLanguage = /\b(acceptance rate|delivery rate|revenue|tasks|samples|capacity|proof point|interview|quote|saw|seen|worked on|measured|accepted|paper|benchmark|peer review|contract|investors?|researchers?)\b/i.test(trimmed);
   if (!hasDigit && !hasEvidenceLanguage) {
     issues.push("The draft lacks obvious data, evidence, or a credible proof signal.");
+  }
+
+  if (!/[“"']/.test(trimmed) && !hasDigit) {
+    issues.push("The draft does not appear to contain a quote, a number, or another hard proof anchor.");
+  }
+
+  if (SUMMARY_ENDING_PATTERNS.some((pattern) => pattern.test(lastParagraph))) {
+    issues.push("The ending reads like a generic summary line instead of a specific founder conclusion.");
   }
 
   return issues;
@@ -158,6 +175,12 @@ Your job:
 - identify proof points
 - surface risks and claim checks
 
+The bar:
+- the draft must feel publishable, not merely sensible
+- it should read like a real founder with firsthand knowledge, not a polished observer
+- it must contain a hard proof anchor: a number, a quote, a concrete operational detail, or a specific observed mechanism
+- it should make one sharp point, not attempt a complete essay
+
 Rules:
 - write for LinkedIn, with strong scannability
 - keep the opening hook under 60 characters
@@ -178,6 +201,21 @@ Rules:
 - prefer one sharp observation, one mechanism, and one proof point over a tidy abstract argument
 - use occasional asymmetry, friction, and spoken texture when it helps the writing feel human
 - if a line could have been written by any AI founder, rewrite it to be more founder-specific
+- do not end with a generic moral or high-level summary sentence
+- when possible, start from a fact, quote, anecdote, or concrete observation rather than an abstract thesis
+- use the strongest source detail early
+
+Preferred post shape:
+1. Open with a concrete fact, quote, or observed problem
+2. Explain the mechanism plainly
+3. Show why it matters operationally
+4. End with a sharp, specific line or question
+
+Bad opening example:
+- "Most training data pipelines still run on factory logic"
+
+Better opening example:
+- "I've been on projects where most of the created work got discarded before it ever became usable."
 
 Return strict JSON only with this shape:
 {
@@ -222,6 +260,8 @@ Problems to fix:
 Rewrite the post so it feels more like a real founder speaking from lived experience.
 Keep the underlying idea, but remove the cliché framing and over-balanced sentence rhythm.
 Make sure the revised version contains at least one credible proof point, data point, direct quote, operational detail, or other clear evidence signal.
+Move the strongest source detail earlier.
+If the ending sounds like a generic summary, replace it with something more specific and more founder-like.
 Return the same strict JSON shape.`;
 
     parsed = await requestFounderDraft(systemPrompt, repairPrompt);
