@@ -97,6 +97,8 @@ const emptyStudioForm = {
   rawInputText: "",
 };
 
+const FOUNDER_BACKUP_KEY = "promptly_founder_posts_backup_v1";
+
 function listToTextarea(items: string[]) {
   return items.join("\n");
 }
@@ -136,10 +138,17 @@ export default function FounderPostsPage() {
   const [studioForm, setStudioForm] = useState(emptyStudioForm);
   const [selectedSourceIds, setSelectedSourceIds] = useState<number[]>([]);
   const [selectedDraft, setSelectedDraft] = useState<FounderDraft | null>(null);
+  const [restoringBackup, setRestoringBackup] = useState(false);
 
   const { data: founders = [], isLoading: foundersLoading } = useQuery<FounderProfile[]>({
     queryKey: ["/api/founders"],
   });
+
+  useEffect(() => {
+    if (founders.length > 0) {
+      localStorage.setItem(FOUNDER_BACKUP_KEY, JSON.stringify(founders));
+    }
+  }, [founders]);
 
   const selectedFounder = useMemo(
     () => founders.find((founder) => founder.id === selectedFounderId) || null,
@@ -361,6 +370,63 @@ export default function FounderPostsPage() {
     toast({ title: `${label} copied`, description: "Ready to paste." });
   };
 
+  const backupFounders = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(FOUNDER_BACKUP_KEY);
+      if (!raw) return [] as FounderProfile[];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [] as FounderProfile[];
+    }
+  }, [founders.length]);
+
+  const restoreLatestBackup = async () => {
+    if (backupFounders.length === 0) return;
+    setRestoringBackup(true);
+    try {
+      for (const backupFounder of backupFounders) {
+        const payload = {
+          name: backupFounder.name,
+          title: backupFounder.title,
+          companyName: backupFounder.companyName,
+          bio: backupFounder.bio,
+          voiceSummary: backupFounder.voiceSummary,
+          voiceRules: backupFounder.voiceRules,
+          signatureMoves: backupFounder.signatureMoves,
+          antiPatterns: backupFounder.antiPatterns,
+          preferredTopics: backupFounder.preferredTopics,
+          sensitiveTopics: backupFounder.sensitiveTopics,
+          bannedWords: backupFounder.bannedWords,
+          approvedPhrases: backupFounder.approvedPhrases,
+          targetPeople: backupFounder.targetPeople,
+          contentGoals: backupFounder.contentGoals,
+        };
+
+        await fetch("/api/founders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/founders"] });
+      toast({
+        title: "Founder backup restored",
+        description: "Your latest local founder backup has been restored to the workspace.",
+      });
+    } catch (error) {
+      toast({
+        title: "Restore failed",
+        description: error instanceof Error ? error.message : "Could not restore the founder backup.",
+        variant: "destructive",
+      });
+    } finally {
+      setRestoringBackup(false);
+    }
+  };
+
   return (
     <AppLayout title="Founder Posts">
       <div className="mb-8">
@@ -398,6 +464,21 @@ export default function FounderPostsPage() {
           </>
         )}
       </div>
+
+      {!foundersLoading && founders.length === 0 && backupFounders.length > 0 && (
+        <Alert className="mb-6">
+          <AlertTitle>Saved founder backup found</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              The live founder workspace looks empty, but this browser has a saved backup of your founder profile data.
+            </span>
+            <Button variant="outline" onClick={restoreLatestBackup} disabled={restoringBackup}>
+              {restoringBackup ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Restore backup
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="voice" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
