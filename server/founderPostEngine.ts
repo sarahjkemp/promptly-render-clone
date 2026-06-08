@@ -29,6 +29,12 @@ export interface FounderPostResult {
   claimCheck: string[];
 }
 
+export interface FounderSourceSeed {
+  title: string;
+  sourceType: string;
+  rawText: string;
+}
+
 function safeJsonParse(text: string) {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) {
@@ -155,4 +161,76 @@ ${sourceContext}`;
     draftFirstComment: parsed.draftFirstComment || null,
     claimCheck: Array.isArray(parsed.claimCheck) ? parsed.claimCheck : [],
   };
+}
+
+export async function splitFounderSourceIntoSeeds(input: {
+  founder: FounderProfile;
+  title: string;
+  sourceType: string;
+  sourceUrl?: string | null;
+  rawText: string;
+}): Promise<FounderSourceSeed[]> {
+  const systemPrompt = `You are helping a founder-content operator split one long source into several reusable post seeds.
+
+Your job:
+- read a long source document
+- identify 3 to 7 distinct LinkedIn-worthy post angles
+- rewrite each angle as a clean source note for drafting
+- make each source note specific and usable
+
+Rules:
+- each seed should represent one distinct post idea
+- do not output generic summaries
+- each seed should be 3 to 6 sentences
+- preserve the founder's perspective where possible
+- remove noise, repetition, handles, and PR filler
+- keep wording plain and usable for an AI drafting system
+
+Return strict JSON only in this shape:
+{
+  "seeds": [
+    {
+      "title": "short source-bank title",
+      "sourceType": "post-seed",
+      "rawText": "cleaned source note"
+    }
+  ]
+}`;
+
+  const founderContext = buildFounderContext(input.founder);
+  const userPrompt = `FOUNDER PROFILE
+${founderContext}
+
+SOURCE TITLE
+${input.title}
+
+SOURCE TYPE
+${input.sourceType}
+
+SOURCE TEXT
+${input.rawText}`;
+
+  const response = await createChatCompletion({
+    model: MODEL,
+    temperature: 0.5,
+    max_tokens: 3000,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+  });
+
+  const text = response.choices?.[0]?.message?.content || "";
+  const parsed = safeJsonParse(text);
+  const seeds = Array.isArray(parsed.seeds) ? parsed.seeds : [];
+
+  return seeds
+    .filter((seed: any) => seed?.title && seed?.rawText)
+    .slice(0, 7)
+    .map((seed: any) => ({
+      title: String(seed.title).trim(),
+      sourceType: "post-seed",
+      rawText: String(seed.rawText).trim(),
+    }));
 }

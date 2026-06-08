@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Sparkles, Copy, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Sparkles, Copy, CheckCircle2, Scissors, Database } from "lucide-react";
 
 interface FounderProfile {
   id: number;
@@ -278,6 +278,34 @@ export default function FounderPostsPage() {
     },
   });
 
+  const splitSourceMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedFounderId) throw new Error("Select a founder first");
+      const response = await fetch(`/api/founders/${selectedFounderId}/sources/split`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(sourceForm),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message || "Failed to split source");
+      }
+      return response.json();
+    },
+    onSuccess: (savedSeeds: FounderSource[]) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/founders", selectedFounderId, "sources"] });
+      setSourceForm(emptySourceForm);
+      toast({
+        title: "Source split into post seeds",
+        description: `${savedSeeds.length} new saved sources were added to the Source Bank.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Split failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!selectedFounderId) throw new Error("Create or select a founder first");
@@ -371,14 +399,15 @@ export default function FounderPostsPage() {
         )}
       </div>
 
-      <Tabs defaultValue="workspace" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="workspace">Workspace</TabsTrigger>
+      <Tabs defaultValue="voice" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="voice">Voice</TabsTrigger>
+          <TabsTrigger value="sources">Source Bank</TabsTrigger>
           <TabsTrigger value="studio">Studio</TabsTrigger>
           <TabsTrigger value="drafts">Drafts</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="workspace" className="space-y-6">
+        <TabsContent value="voice" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>{selectedFounder ? "Founder voice file" : "Create your first founder"}</CardTitle>
@@ -480,62 +509,97 @@ export default function FounderPostsPage() {
             </CardContent>
           </Card>
 
-          {selectedFounder && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Source bank</CardTitle>
-                <CardDescription>
-                  Save articles, transcripts, PR notes, screenshots, or raw founder ideas so you can reuse them later.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Input
-                    placeholder="Source title"
-                    value={sourceForm.title}
-                    onChange={(event) => setSourceForm((prev) => ({ ...prev, title: event.target.value }))}
-                  />
-                  <Select
-                    value={sourceForm.sourceType}
-                    onValueChange={(value) => setSourceForm((prev) => ({ ...prev, sourceType: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Source type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="article">Article</SelectItem>
-                      <SelectItem value="interview">Interview</SelectItem>
-                      <SelectItem value="event-note">Event note</SelectItem>
-                      <SelectItem value="pr-note">PR note</SelectItem>
-                      <SelectItem value="voice-note">Voice note</SelectItem>
-                      <SelectItem value="message">Message / chat</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    placeholder="Optional source URL"
-                    value={sourceForm.sourceUrl}
-                    onChange={(event) => setSourceForm((prev) => ({ ...prev, sourceUrl: event.target.value }))}
-                  />
-                </div>
-                <Textarea
-                  placeholder="Paste the source text here"
-                  value={sourceForm.rawText}
-                  onChange={(event) => setSourceForm((prev) => ({ ...prev, rawText: event.target.value }))}
-                  className="min-h-[180px]"
-                />
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={sourceForm.isApprovedForReuse}
-                    onCheckedChange={(checked) => setSourceForm((prev) => ({ ...prev, isApprovedForReuse: checked === true }))}
-                  />
-                  <span className="text-sm text-gray-600">Approved for reuse in future drafts</span>
-                </div>
-                <Button onClick={() => createSourceMutation.mutate()} disabled={createSourceMutation.isPending}>
-                  {createSourceMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                  Save source
-                </Button>
+        </TabsContent>
 
-                <div className="space-y-3 pt-4">
+        <TabsContent value="sources" className="space-y-6">
+          {!selectedFounder ? (
+            <Alert>
+              <AlertTitle>Create a founder first</AlertTitle>
+              <AlertDescription>
+                The Source Bank lives here. Create the founder workspace first, then save source materials and post seeds underneath it.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Source Bank</CardTitle>
+                  <CardDescription>
+                    Save one long source once, or split it into several reusable post seeds automatically.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Alert>
+                    <Database className="h-4 w-4" />
+                    <AlertTitle>This is where saved sources live</AlertTitle>
+                    <AlertDescription>
+                      Save full materials here, then use them later in Studio. For long documents like press releases, use <strong>Split into post seeds</strong>.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Input
+                      placeholder="Source title"
+                      value={sourceForm.title}
+                      onChange={(event) => setSourceForm((prev) => ({ ...prev, title: event.target.value }))}
+                    />
+                    <Select
+                      value={sourceForm.sourceType}
+                      onValueChange={(value) => setSourceForm((prev) => ({ ...prev, sourceType: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Source type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="article">Article</SelectItem>
+                        <SelectItem value="interview">Interview</SelectItem>
+                        <SelectItem value="event-note">Event note</SelectItem>
+                        <SelectItem value="pr-note">PR note</SelectItem>
+                        <SelectItem value="voice-note">Voice note</SelectItem>
+                        <SelectItem value="message">Message / chat</SelectItem>
+                        <SelectItem value="press-release">Press release</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Optional source URL"
+                      value={sourceForm.sourceUrl}
+                      onChange={(event) => setSourceForm((prev) => ({ ...prev, sourceUrl: event.target.value }))}
+                    />
+                  </div>
+                  <Textarea
+                    placeholder="Paste the source text here"
+                    value={sourceForm.rawText}
+                    onChange={(event) => setSourceForm((prev) => ({ ...prev, rawText: event.target.value }))}
+                    className="min-h-[220px]"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={sourceForm.isApprovedForReuse}
+                      onCheckedChange={(checked) => setSourceForm((prev) => ({ ...prev, isApprovedForReuse: checked === true }))}
+                    />
+                    <span className="text-sm text-gray-600">Approved for reuse in future drafts</span>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Button onClick={() => createSourceMutation.mutate()} disabled={createSourceMutation.isPending || splitSourceMutation.isPending}>
+                      {createSourceMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                      Save source as-is
+                    </Button>
+                    <Button variant="outline" onClick={() => splitSourceMutation.mutate()} disabled={splitSourceMutation.isPending || createSourceMutation.isPending}>
+                      {splitSourceMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Scissors className="mr-2 h-4 w-4" />}
+                      Split into post seeds
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Saved sources</CardTitle>
+                  <CardDescription>
+                    Select these later in Studio when you want to generate a founder post.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   {sources.map((source) => (
                     <div key={source.id} className="rounded-lg border border-gray-200 p-4">
                       <div className="mb-2 flex items-start justify-between gap-3">
@@ -550,15 +614,15 @@ export default function FounderPostsPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <p className="text-sm text-gray-600">{source.rawText.slice(0, 220)}{source.rawText.length > 220 ? "..." : ""}</p>
+                      <p className="text-sm text-gray-600">{source.rawText.slice(0, 260)}{source.rawText.length > 260 ? "..." : ""}</p>
                     </div>
                   ))}
                   {sources.length === 0 && (
-                    <p className="text-sm text-gray-500">No saved sources yet.</p>
+                    <p className="text-sm text-gray-500">No saved sources yet. Add one above, or split a long source into post seeds.</p>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
 
@@ -580,6 +644,12 @@ export default function FounderPostsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <Alert>
+                    <AlertTitle>Missing a source?</AlertTitle>
+                    <AlertDescription>
+                      Saved sources live in the <strong>Source Bank</strong> tab. That is also where you can split one press release or transcript into multiple reusable post seeds.
+                    </AlertDescription>
+                  </Alert>
                   <div className="grid gap-4 md:grid-cols-3">
                     <Select
                       value={studioForm.objective}

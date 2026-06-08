@@ -17,7 +17,7 @@ import { validateCompanyContext } from "./middlewares/contextValidation";
 import { fetchNewsForCompany } from "./news-fetcher";
 import { handleStreamConnection, initializeStreamingEvents } from "./stream";
 import { founderStorage } from "./founderStorage";
-import { generateFounderPost } from "./founderPostEngine";
+import { generateFounderPost, splitFounderSourceIntoSeeds } from "./founderPostEngine";
 import multer from "multer";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -437,6 +437,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating founder source:", error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/founders/:id/sources/split", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const founderId = parseInt(req.params.id);
+      const founder = await getOwnedFounder(founderId, req.user!.id);
+      if (!founder) {
+        return res.status(404).json({ message: "Founder not found" });
+      }
+
+      const parsed = founderSourceSchema.parse(req.body);
+      const seeds = await splitFounderSourceIntoSeeds({
+        founder,
+        title: parsed.title,
+        sourceType: parsed.sourceType,
+        sourceUrl: parsed.sourceUrl || null,
+        rawText: parsed.rawText,
+      });
+
+      const savedSeeds = [];
+      for (const seed of seeds) {
+        const saved = await founderStorage.createSource({
+          founderId,
+          title: seed.title,
+          sourceType: seed.sourceType,
+          sourceUrl: parsed.sourceUrl || null,
+          rawText: seed.rawText,
+          isApprovedForReuse: true,
+        });
+        savedSeeds.push(saved);
+      }
+
+      res.status(201).json(savedSeeds);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid source data", errors: error.errors });
+      }
+      console.error("Error splitting founder source:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Internal server error" });
     }
   });
 
