@@ -2,6 +2,19 @@ import { createChatCompletion } from "./openaiQueue";
 import type { FounderProfile, FounderSource } from "./founderStorage";
 
 const MODEL = "gpt-4.1";
+const MAX_DRAFT_PASSES = 2;
+
+const SLOP_PATTERNS = [
+  /everyone thinks/i,
+  /most people think/i,
+  /the real problem is/i,
+  /it'?s not .+ it'?s .+/i,
+  /in reality/i,
+  /what people miss/i,
+  /the future of ai/i,
+  /everyone talks about/i,
+  /most people talk about/i,
+];
 
 export interface FounderPostRequest {
   founder: FounderProfile;
@@ -82,6 +95,50 @@ ${rawInputText}`);
   return sourceBlocks.join("\n\n");
 }
 
+function findSlopIssues(text: string) {
+  const issues: string[] = [];
+  const trimmed = text.trim();
+  const firstParagraph = trimmed.split(/\n\s*\n/)[0] || trimmed;
+
+  if (SLOP_PATTERNS.some((pattern) => pattern.test(firstParagraph))) {
+    issues.push("The opening uses a generic AI-thinkpiece pattern or cliché contrarian setup.");
+  }
+
+  if (/^[^.\n!?]{0,80}\.\s+[A-Z][^.\n!?]{0,80}\.$/m.test(firstParagraph)) {
+    issues.push("The opening reads like a neat two-sentence slogan pair instead of natural founder writing.");
+  }
+
+  if ((trimmed.match(/\bactually\b/gi) || []).length >= 2) {
+    issues.push('The draft leans on explanatory filler like "actually".');
+  }
+
+  if ((trimmed.match(/\bjust\b/gi) || []).length >= 4) {
+    issues.push('The draft uses too much softening filler such as "just".');
+  }
+
+  return issues;
+}
+
+function sanitizeHooks(hooks: string[]) {
+  return hooks.map((hook) => hook.trim()).filter(Boolean).slice(0, 3);
+}
+
+async function requestFounderDraft(systemPrompt: string, userPrompt: string) {
+  const response = await createChatCompletion({
+    model: MODEL,
+    temperature: 0.7,
+    max_tokens: 3500,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+  });
+
+  const text = response.choices?.[0]?.message?.content || "";
+  return safeJsonParse(text);
+}
+
 export async function generateFounderPost(request: FounderPostRequest): Promise<FounderPostResult> {
   const founderContext = buildFounderContext(request.founder);
   const sourceContext = buildSourceContext(request.sources, request.rawInputTitle, request.rawInputText);
@@ -104,6 +161,13 @@ Rules:
 - use concrete mechanism and proof, not vague opinion
 - if a claim feels risky, list it in riskFlags and claimCheck
 - if the source material is weak, still produce the strongest defensible angle
+- do not open with generic AI-slop framing such as "everyone thinks", "most people think", "everyone talks about", "the real problem is", "what people miss", or "it's not X, it's Y"
+- do not write in neat, polished contrast pairs that sound like a LinkedIn think piece
+- do not sound like a commentator summarising a trend from the outside
+- do not smooth the language so much that it stops sounding like a real person
+- prefer one sharp observation, one mechanism, and one proof point over a tidy abstract argument
+- use occasional asymmetry, friction, and spoken texture when it helps the writing feel human
+- if a line could have been written by any AI founder, rewrite it to be more founder-specific
 
 Return strict JSON only with this shape:
 {
@@ -133,19 +197,25 @@ REQUEST
 SOURCE MATERIAL
 ${sourceContext}`;
 
-  const response = await createChatCompletion({
-    model: MODEL,
-    temperature: 0.7,
-    max_tokens: 3500,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-  });
+  let parsed = await requestFounderDraft(systemPrompt, userPrompt);
+  let issues = findSlopIssues(String(parsed.draftPrimary || ""));
 
-  const text = response.choices?.[0]?.message?.content || "";
-  const parsed = safeJsonParse(text);
+  if (issues.length > 0) {
+    const repairPrompt = `${userPrompt}
+
+CRITICAL REVISION TASK
+Your previous draft sounded too AI-written.
+
+Problems to fix:
+- ${issues.join("\n- ")}
+
+Rewrite the post so it feels more like a real founder speaking from lived experience.
+Keep the underlying idea, but remove the cliché framing and over-balanced sentence rhythm.
+Return the same strict JSON shape.`;
+
+    parsed = await requestFounderDraft(systemPrompt, repairPrompt);
+    issues = findSlopIssues(String(parsed.draftPrimary || ""));
+  }
 
   return {
     title: parsed.title || "Founder Post Draft",
@@ -154,9 +224,9 @@ ${sourceContext}`;
     draftShape: parsed.draftShape || request.draftShape || "contrarian mechanism",
     selectedAngle: parsed.selectedAngle || "",
     usedProofPoints: Array.isArray(parsed.usedProofPoints) ? parsed.usedProofPoints : [],
-    riskFlags: Array.isArray(parsed.riskFlags) ? parsed.riskFlags : [],
+    riskFlags: Array.isArray(parsed.riskFlags) ? [...parsed.riskFlags, ...(issues.length > 0 ? ["Draft may still read too polished or generic; manual review recommended."] : [])] : issues.length > 0 ? ["Draft may still read too polished or generic; manual review recommended."] : [],
     draftPrimary: parsed.draftPrimary || "",
-    draftHooks: Array.isArray(parsed.draftHooks) ? parsed.draftHooks.slice(0, 3) : [],
+    draftHooks: Array.isArray(parsed.draftHooks) ? sanitizeHooks(parsed.draftHooks) : [],
     draftAltAngle: parsed.draftAltAngle || null,
     draftFirstComment: parsed.draftFirstComment || null,
     claimCheck: Array.isArray(parsed.claimCheck) ? parsed.claimCheck : [],
