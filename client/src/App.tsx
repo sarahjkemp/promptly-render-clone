@@ -12,6 +12,7 @@ const pageLoaders = {
   OnboardingPage: () => import("@/pages/onboarding-page"),
   DashboardPage: () => import("@/pages/dashboard-page"),
   AddArticlePage: () => import("@/pages/add-article-page"),
+  FounderPostsPage: () => import("@/pages/founder-posts-page"),
   ResultsPage: () => import("@/pages/results-page"),
   HistoryPage: () => import("@/pages/history-page"),
   SettingsPage: () => import("@/pages/settings-page"),
@@ -30,6 +31,7 @@ const pageLoaders = {
   // Load the rest after a tiny delay
   setTimeout(() => {
     pageLoaders.AddArticlePage();
+    pageLoaders.FounderPostsPage();
     pageLoaders.ResultsPage();
     pageLoaders.OnboardingPage();
   }, 100);
@@ -39,6 +41,7 @@ const pageLoaders = {
 const OnboardingPage = lazy(pageLoaders.OnboardingPage);
 const DashboardPage = lazy(pageLoaders.DashboardPage);
 const AddArticlePage = lazy(pageLoaders.AddArticlePage);
+const FounderPostsPage = lazy(pageLoaders.FounderPostsPage);
 const ResultsPage = lazy(pageLoaders.ResultsPage);
 const HistoryPage = lazy(pageLoaders.HistoryPage);
 const SettingsPage = lazy(pageLoaders.SettingsPage);
@@ -77,6 +80,9 @@ function App() {
           </Route>
           <Route path="/add-content">
             <LazyRoute component={AddArticlePage} />
+          </Route>
+          <Route path="/founder-posts">
+            <LazyRoute component={FounderPostsPage} />
           </Route>
           <Route path="/results/:articleId">
             <LazyRoute component={ResultsPage} />

@@ -8,6 +8,7 @@ import { useAuthActions } from "@/hooks/use-auth-actions";
 import { 
   LayoutDashboard,
   Newspaper,
+  PenSquare,
   History,
   Settings,
   LogOut,
@@ -110,6 +111,9 @@ export default function Sidebar({ className }: SidebarProps) {
       case "/add-content":
         // Prefetch any data needed for add content page
         break;
+      case "/founder-posts":
+        import("@/pages/founder-posts-page");
+        break;
       default:
         // Default prefetch for other routes
         break;
@@ -145,6 +149,7 @@ export default function Sidebar({ className }: SidebarProps) {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/add-content", label: "Add Content", icon: Newspaper },
     { href: "/history", label: "History", icon: History },
+    { href: "/founder-posts", label: "Founder Posts", icon: PenSquare },
     { href: "/documents", label: "Documents", icon: FileText },
     { href: "/settings", label: "Settings", icon: Settings }
   ];

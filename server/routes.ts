@@ -16,6 +16,8 @@ import { generateMediaSuggestions } from "./openai";
 import { validateCompanyContext } from "./middlewares/contextValidation";
 import { fetchNewsForCompany } from "./news-fetcher";
 import { handleStreamConnection, initializeStreamingEvents } from "./stream";
+import { founderStorage } from "./founderStorage";
+import { generateFounderPost } from "./founderPostEngine";
 import multer from "multer";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -274,6 +276,311 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.error("Error updating user profile:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  const founderProfileSchema = z.object({
+    name: z.string().min(2),
+    title: z.string().optional().default(""),
+    companyName: z.string().optional().default(""),
+    bio: z.string().optional().default(""),
+    voiceSummary: z.string().optional().default(""),
+    voiceRules: z.string().optional().default(""),
+    signatureMoves: z.array(z.string()).optional().default([]),
+    antiPatterns: z.array(z.string()).optional().default([]),
+    preferredTopics: z.array(z.string()).optional().default([]),
+    sensitiveTopics: z.array(z.string()).optional().default([]),
+    bannedWords: z.array(z.string()).optional().default([]),
+    approvedPhrases: z.array(z.string()).optional().default([]),
+    targetPeople: z.array(z.string()).optional().default([]),
+    contentGoals: z.array(z.string()).optional().default([]),
+  });
+
+  const founderSourceSchema = z.object({
+    title: z.string().min(2),
+    sourceType: z.string().min(2),
+    sourceUrl: z.string().url().optional().or(z.literal("")).or(z.null()),
+    rawText: z.string().min(40),
+    isApprovedForReuse: z.boolean().optional().default(true),
+  });
+
+  const founderGenerateSchema = z.object({
+    sourceIds: z.array(z.number()).optional().default([]),
+    rawInputTitle: z.string().optional().default(""),
+    rawInputText: z.string().optional().default(""),
+    objective: z.string().optional().default(""),
+    audience: z.string().optional().default(""),
+    draftShape: z.string().optional().default(""),
+    sensitivityNotes: z.string().optional().default(""),
+  }).refine((data) => {
+    return data.sourceIds.length > 0 || (data.rawInputText && data.rawInputText.trim().length >= 40);
+  }, {
+    message: "Provide at least one saved source or 40+ characters of raw source material.",
+    path: ["rawInputText"],
+  });
+
+  async function getOwnedFounder(founderId: number, userId: number) {
+    const founder = await founderStorage.getFounder(founderId);
+    if (!founder || founder.userId !== userId) {
+      return undefined;
+    }
+    return founder;
+  }
+
+  app.get("/api/founders", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const founders = await founderStorage.getFoundersByUserId(req.user!.id);
+      res.json(founders);
+    } catch (error) {
+      console.error("Error fetching founders:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/founders", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const parsed = founderProfileSchema.parse(req.body);
+      const companyProfile = await storage.getCompanyProfileByUserId(req.user!.id);
+      const founder = await founderStorage.createFounder({
+        userId: req.user!.id,
+        companyProfileId: companyProfile?.id ?? null,
+        ...parsed,
+      });
+      res.status(201).json(founder);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid founder data", errors: error.errors });
+      }
+      console.error("Error creating founder:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/founders/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const founderId = parseInt(req.params.id);
+      const founder = await getOwnedFounder(founderId, req.user!.id);
+      if (!founder) {
+        return res.status(404).json({ message: "Founder not found" });
+      }
+
+      const parsed = founderProfileSchema.partial().parse(req.body);
+      const updated = await founderStorage.updateFounder(founderId, parsed);
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid founder data", errors: error.errors });
+      }
+      console.error("Error updating founder:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/founders/:id/sources", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const founderId = parseInt(req.params.id);
+      const founder = await getOwnedFounder(founderId, req.user!.id);
+      if (!founder) {
+        return res.status(404).json({ message: "Founder not found" });
+      }
+
+      const sources = await founderStorage.getSourcesByFounderId(founderId);
+      res.json(sources);
+    } catch (error) {
+      console.error("Error fetching founder sources:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/founders/:id/sources", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const founderId = parseInt(req.params.id);
+      const founder = await getOwnedFounder(founderId, req.user!.id);
+      if (!founder) {
+        return res.status(404).json({ message: "Founder not found" });
+      }
+
+      const parsed = founderSourceSchema.parse(req.body);
+      const source = await founderStorage.createSource({
+        founderId,
+        title: parsed.title,
+        sourceType: parsed.sourceType,
+        sourceUrl: parsed.sourceUrl || null,
+        rawText: parsed.rawText,
+        isApprovedForReuse: parsed.isApprovedForReuse,
+      });
+      res.status(201).json(source);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid source data", errors: error.errors });
+      }
+      console.error("Error creating founder source:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/founders/:founderId/sources/:sourceId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const founderId = parseInt(req.params.founderId);
+      const sourceId = parseInt(req.params.sourceId);
+      const founder = await getOwnedFounder(founderId, req.user!.id);
+      if (!founder) {
+        return res.status(404).json({ message: "Founder not found" });
+      }
+
+      const source = await founderStorage.getSource(sourceId);
+      if (!source || source.founderId !== founderId) {
+        return res.status(404).json({ message: "Source not found" });
+      }
+
+      await founderStorage.deleteSource(sourceId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting founder source:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/founders/:id/drafts", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const founderId = parseInt(req.params.id);
+      const founder = await getOwnedFounder(founderId, req.user!.id);
+      if (!founder) {
+        return res.status(404).json({ message: "Founder not found" });
+      }
+
+      const drafts = await founderStorage.getDraftsByFounderId(founderId);
+      res.json(drafts);
+    } catch (error) {
+      console.error("Error fetching founder drafts:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/founders/:id/generate-post", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const founderId = parseInt(req.params.id);
+      const founder = await getOwnedFounder(founderId, req.user!.id);
+      if (!founder) {
+        return res.status(404).json({ message: "Founder not found" });
+      }
+
+      const parsed = founderGenerateSchema.parse(req.body);
+      const sources = [];
+
+      for (const sourceId of parsed.sourceIds) {
+        const source = await founderStorage.getSource(sourceId);
+        if (source && source.founderId === founderId) {
+          sources.push(source);
+        }
+      }
+
+      const generated = await generateFounderPost({
+        founder,
+        sources,
+        rawInputTitle: parsed.rawInputTitle,
+        rawInputText: parsed.rawInputText,
+        objective: parsed.objective,
+        audience: parsed.audience,
+        draftShape: parsed.draftShape,
+        sensitivityNotes: parsed.sensitivityNotes,
+      });
+
+      const draft = await founderStorage.createDraft({
+        founderId,
+        title: generated.title,
+        objective: generated.objective,
+        audience: generated.audience,
+        draftShape: generated.draftShape,
+        sourceIds: parsed.sourceIds,
+        selectedAngle: generated.selectedAngle,
+        usedProofPoints: generated.usedProofPoints,
+        riskFlags: generated.riskFlags,
+        draftPrimary: generated.draftPrimary,
+        draftHooks: generated.draftHooks,
+        draftAltAngle: generated.draftAltAngle,
+        draftFirstComment: generated.draftFirstComment,
+        claimCheck: generated.claimCheck,
+      });
+
+      res.status(201).json(draft);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid generation request", errors: error.errors });
+      }
+      console.error("Error generating founder post:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Internal server error" });
+    }
+  });
+
+  app.patch("/api/founder-drafts/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const draftId = parseInt(req.params.id);
+      const draft = await founderStorage.getDraft(draftId);
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+
+      const founder = await getOwnedFounder(draft.founderId, req.user!.id);
+      if (!founder) {
+        return res.status(403).json({ message: "Permission denied" });
+      }
+
+      const parsed = z.object({
+        approvedVersion: z.string().optional(),
+        editorNotes: z.string().optional(),
+        status: z.enum(["draft", "approved"]).optional(),
+      }).parse(req.body);
+
+      const updated = await founderStorage.updateDraft(draftId, {
+        approvedVersion: parsed.approvedVersion ?? draft.approvedVersion,
+        editorNotes: parsed.editorNotes ?? draft.editorNotes,
+        status: parsed.status ?? draft.status,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid draft update", errors: error.errors });
+      }
+      console.error("Error updating founder draft:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
