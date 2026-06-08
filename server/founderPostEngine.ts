@@ -116,6 +116,12 @@ function findSlopIssues(text: string) {
     issues.push('The draft uses too much softening filler such as "just".');
   }
 
+  const hasDigit = /\d/.test(trimmed);
+  const hasEvidenceLanguage = /\b(acceptance rate|delivery rate|revenue|tasks|samples|capacity|proof point|interview|quote|saw|seen|worked on|measured|accepted|paper|benchmark|peer review|contract|investors?|researchers?)\b/i.test(trimmed);
+  if (!hasDigit && !hasEvidenceLanguage) {
+    issues.push("The draft lacks obvious data, evidence, or a credible proof signal.");
+  }
+
   return issues;
 }
 
@@ -159,6 +165,10 @@ Rules:
 - avoid fake warmth, cliché inspiration, and generic "future of AI" language
 - do not use banned words or anti-patterns from the founder profile
 - use concrete mechanism and proof, not vague opinion
+- every post must contain at least one credible insight
+- include data, numbers, proof points, or specific evidence wherever the source material allows
+- if the source does not support a number, use a concrete operational detail, observed mechanism, direct quote, or lived-experience proof instead
+- do not produce empty thought leadership or broad commentary without evidence
 - if a claim feels risky, list it in riskFlags and claimCheck
 - if the source material is weak, still produce the strongest defensible angle
 - do not open with generic AI-slop framing such as "everyone thinks", "most people think", "everyone talks about", "the real problem is", "what people miss", or "it's not X, it's Y"
@@ -211,6 +221,7 @@ Problems to fix:
 
 Rewrite the post so it feels more like a real founder speaking from lived experience.
 Keep the underlying idea, but remove the cliché framing and over-balanced sentence rhythm.
+Make sure the revised version contains at least one credible proof point, data point, direct quote, operational detail, or other clear evidence signal.
 Return the same strict JSON shape.`;
 
     parsed = await requestFounderDraft(systemPrompt, repairPrompt);
